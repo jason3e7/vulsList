@@ -60,26 +60,37 @@ for url in urlList:
 			break;
 
 
-url = 'https://www.hkcert.org/security-bulletin?p_p_id=3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet&p_p_lifecycle=1&p_p_state=normal&p_p_mode=view&p_p_col_id=column-h3&p_p_col_count=1&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_templateDir=template&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_theme=simple&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_dynamicAttributes=%7B%7D&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_name=frm_sa_full&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_id=frm_sa_full&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_struts.portlet.action=%2Fview%2Fview%2Findex&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_struts.portlet.mode=view'
+url = 'https://www.hkcert.org/security-bulletin?p_p_id=3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_cur='
 VLWriter.writerows([[url]])
-s = Session()
-req = Request('GET', url)
-prepped = req.prepare()
-prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
-r = s.send(prepped)
-print 'Get : %s' % url
 
-soup = BeautifulSoup(r.content)
-rows = soup.find("table", attrs={"class": "sdchk_table3"}).find("tbody").findAll("tr")
-	
-for row in rows:
-	cells = row.findAll("td")
-	date = datetime.strptime(cells[3].getText(), "%Y / %m / %d")  
-	if (begin <= date and date <= end): 
-		data = [[date, cells[1].getText()]]
-		VLWriter.writerows(data)
+def getHkcert(url):
+	s = Session()
+	req = Request('GET', url)
+	prepped = req.prepare()
+	prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
+	r = s.send(prepped)
+	print 'Get : %s' % url
 
-time.sleep(0.5)
+	soup = BeautifulSoup(r.content)
+	rows = soup.find("table", attrs={"class": "sdchk_table3"}).find("tbody").findAll("tr")
+	date = 0
+	for row in rows:
+		cells = row.findAll("td")
+		date = datetime.strptime(cells[3].getText(), "%Y / %m / %d")  
+		if (begin <= date and date <= end): 
+			data = [[date, cells[1].getText()]]
+			VLWriter.writerows(data)
+	time.sleep(0.5)
+	return date
+
+pg = 1;
+while(1):
+	pgdate = getHkcert(url+str(pg))	
+	if (pgdate >= begin):
+		pg += 1
+	else:
+		break;
+
 
 url = 'http://www.nsfocus.net/index.php?act=sec_bug'
 VLWriter.writerows([[url]])
