@@ -58,7 +58,9 @@ for url in urlList:
 			pg += 1
 		else:
 			break;
-url = 'https://www.hkcert.org/security-bulletin'
+
+
+url = 'https://www.hkcert.org/security-bulletin?p_p_id=3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet&p_p_lifecycle=1&p_p_state=normal&p_p_mode=view&p_p_col_id=column-h3&p_p_col_count=1&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_templateDir=template&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_theme=simple&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_dynamicAttributes=%7B%7D&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_name=frm_sa_full&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_id=frm_sa_full&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_struts.portlet.action=%2Fview%2Fview%2Findex&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_struts.portlet.mode=view'
 VLWriter.writerows([[url]])
 s = Session()
 req = Request('GET', url)
@@ -79,31 +81,40 @@ for row in rows:
 
 time.sleep(0.5)
 
-#url = 'http://www.nsfocus.net/index.php?act=sec_bug'
-url = 'http://www.nsfocus.net/index.php?act=sec_bug&page=6'
+url = 'http://www.nsfocus.net/index.php?act=sec_bug'
 VLWriter.writerows([[url]])
-s = Session()
-req = Request('GET', url)
-prepped = req.prepare()
-prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
-r = s.send(prepped)
-print 'Get : %s' % url
 
-r.encoding = r.apparent_encoding
+def getNsfocus(url):
+	s = Session()
+	req = Request('GET', url)
+	prepped = req.prepare()
+	prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
+	r = s.send(prepped)
+	print 'Get : %s' % url
 
-soup = BeautifulSoup(r.text)
-rows = soup.find("ul", attrs={"class": "vul_list"}).findAll("li")
-cc = opencc.OpenCC('s2t')
+	r.encoding = r.apparent_encoding
 
-for row in rows:
-	# cn word print ERROR but save file OK
-	date = datetime.strptime(row.find("span").getText(), "%Y-%m-%d")  
-	if (begin <= date and date <= end):
-		# save utf8 tw use excel import OK
-		title = cc.convert(row.find("a").getText())
-		data = [[date, title]]
-		VLWriter.writerows(data)
-	
-time.sleep(0.5)
+	soup = BeautifulSoup(r.text)
+	rows = soup.find("ul", attrs={"class": "vul_list"}).findAll("li")
+	cc = opencc.OpenCC('s2t')
+	date = 0
+	for row in rows:
+		# cn word print ERROR but save file OK
+		date = datetime.strptime(row.find("span").getText(), "%Y-%m-%d")  
+		if (begin <= date and date <= end):
+			# save utf8 tw use excel import OK
+			title = cc.convert(row.find("a").getText())
+			data = [[date, title]]
+			VLWriter.writerows(data)
+	time.sleep(0.5)
+	return date
+
+pg = 1;
+while(1):
+	pgdate = getNsfocus(url+"&page="+str(pg))	
+	if (pgdate >= begin):
+		pg += 1
+	else:
+		break;
 
 vulsListFile.close()
