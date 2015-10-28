@@ -7,20 +7,51 @@ sys.setdefaultencoding('utf-8')
 
 import string
 import time
-import csv
 from BeautifulSoup import BeautifulSoup
 from requests import Request, Session
 from datetime import datetime
 import opencc
+import win32com.client
 
-vulsListFile = open('./vulsList.csv', 'wb')
-VLWriter = csv.writer(vulsListFile)
+excelFilePath = "../vulsList/vulsList.xlsx"
 
-data = [['Date', 'Title', 'Platform']]
-VLWriter.writerows(data)
+excelapp = win32com.client.Dispatch("Excel.Application")
+excelapp.Visible = 0
+excelxls = excelapp.Workbooks.Open(excelFilePath)
 
-begin = datetime(2015, 9, 17)
-end = datetime(2015, 9, 24)
+whiteList = []
+blackList = []
+
+wl = excelxls.Worksheets("whiteList")
+used = wl.UsedRange
+nrows = used.Row + used.Rows.Count
+
+for i in range(2, nrows):
+	whiteList.append(str(wl.Cells(i, 1)))
+
+bl = excelxls.Worksheets("blackList")
+used = bl.UsedRange
+nrows = used.Row + used.Rows.Count
+
+for i in range(2, nrows):
+	blackList.append(str(bl.Cells(i, 1)))
+
+#print whiteList
+#print blackList
+
+line = 1
+run = excelxls.Worksheets('run')
+'''
+run.Cells(1, 1).Value = 'Date'
+run.Cells(1, 2).Value = 'Title'
+run.Cells(1, 3).Value = 'Platform'
+'''
+data = ['Date', 'Title', 'Platform']
+run.Range(run.Cells(line, 1), run.Cells(line, 3)).Value = data
+line += 1
+
+begin = datetime(2015, 10, 26)
+end = datetime(2015, 10, 28)
 
 urlList = [
 	'https://www.exploit-db.com/remote/?order_by=date&order=desc',
@@ -30,6 +61,7 @@ urlList = [
 ]
 
 def getExploitDB(url):
+	global line
 	s = Session()
 	
 	req = Request('GET', url)
@@ -44,13 +76,15 @@ def getExploitDB(url):
 		cells = row.findAll("td")
 		date = datetime.strptime(cells[0].getText(), "%Y-%m-%d")  
 		if (begin <= date and date <= end): 
-			data = [[date, cells[4].getText(), cells[5].getText()]]
-			VLWriter.writerows(data)
+			data = [date, cells[4].getText(), cells[5].getText()]
+			run.Range(run.Cells(line, 1), run.Cells(line, 3)).Value = data
+			line += 1;
 	time.sleep(0.5)
 	return date
 
 for url in urlList:
-	VLWriter.writerows([[url]])
+	run.Cells(line, 1).Value = url
+	line += 1
 	pg = 1;
 	while(1):
 		pgdate = getExploitDB(url+"&pg="+str(pg))	
@@ -60,10 +94,13 @@ for url in urlList:
 			break;
 
 
+
 url = 'https://www.hkcert.org/security-bulletin?p_p_id=3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_cur='
-VLWriter.writerows([[url]])
+run.Cells(line, 1).Value = url
+line += 1
 
 def getHkcert(url):
+	global line
 	s = Session()
 	req = Request('GET', url)
 	prepped = req.prepare()
@@ -78,8 +115,9 @@ def getHkcert(url):
 		cells = row.findAll("td")
 		date = datetime.strptime(cells[3].getText(), "%Y / %m / %d")  
 		if (begin <= date and date <= end): 
-			data = [[date, cells[1].getText()]]
-			VLWriter.writerows(data)
+			data = [date, cells[1].getText()]
+			run.Range(run.Cells(line, 1), run.Cells(line, 2)).Value = data
+			line += 1;
 	time.sleep(0.5)
 	return date
 
@@ -92,10 +130,13 @@ while(1):
 		break;
 
 
+
 url = 'http://www.nsfocus.net/index.php?act=sec_bug'
-VLWriter.writerows([[url]])
+run.Cells(line, 1).Value = url
+line += 1
 
 def getNsfocus(url):
+	global line
 	s = Session()
 	req = Request('GET', url)
 	prepped = req.prepare()
@@ -115,8 +156,9 @@ def getNsfocus(url):
 		if (begin <= date and date <= end):
 			# save utf8 tw use excel import OK
 			title = cc.convert(row.find("a").getText())
-			data = [[date, title]]
-			VLWriter.writerows(data)
+			data = [date, title]
+			run.Range(run.Cells(line, 1), run.Cells(line, 2)).Value = data
+			line += 1;
 	time.sleep(0.5)
 	return date
 
@@ -128,4 +170,6 @@ while(1):
 	else:
 		break;
 
-vulsListFile.close()
+
+excelxls.Save()
+excelapp.Quit()
