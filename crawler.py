@@ -14,6 +14,8 @@ import opencc
 import re
 import win32com.client
 
+sTime = 0.1
+
 excelFilePath = "../vulsList/vulsList.xlsx"
 
 excelapp = win32com.client.Dispatch("Excel.Application")
@@ -22,6 +24,8 @@ excelxls = excelapp.Workbooks.Open(excelFilePath)
 
 whiteList = []
 blackList = []
+
+print "Read xlsx file"
 
 wl = excelxls.Worksheets("whiteList")
 used = wl.UsedRange
@@ -46,10 +50,18 @@ data = ['Date', 'Title', 'Platform', 'Source', 'CVE']
 run.Range(run.Cells(line, 1), run.Cells(line, 5)).Value = data
 line += 1
 
-begin = datetime(2015, 10, 27)
+begin = datetime(2015, 10, 26)
 end = datetime(2015, 10, 28)
 
-'''
+def getHttp(url):
+	time.sleep(sTime)
+	s = Session()	
+	req = Request('GET', url)
+	prepped = req.prepare()
+	prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
+	print 'Get : %s' % url
+	return s.send(prepped)
+
 urlList = [
 	'https://www.exploit-db.com/remote/?order_by=date&order=desc',
 	'https://www.exploit-db.com/webapps/?order_by=date&order=desc',
@@ -59,13 +71,7 @@ urlList = [
 
 def getExploitDB(url):
 	global line
-	s = Session()
-	
-	req = Request('GET', url)
-	prepped = req.prepare()
-	prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
-	r = s.send(prepped)
-	print 'Get : %s' % url
+	r = getHttp(url)
 	soup = BeautifulSoup(r.content)
 	rows = soup.find("table").find("tbody").findAll("tr")
 	date = 0	
@@ -73,10 +79,15 @@ def getExploitDB(url):
 		cells = row.findAll("td")
 		date = datetime.strptime(cells[0].getText(), "%Y-%m-%d")  
 		if (begin <= date and date <= end): 
-			data = [date, cells[4].getText(), cells[5].getText(), cells[4].find('a').get('href')]
-			run.Range(run.Cells(line, 1), run.Cells(line, 4)).Value = data
+			source = cells[4].find('a').get('href')	
+			sourceR = getHttp(source)
+			sourceHttp = BeautifulSoup(sourceR.content)
+			tdList = sourceHttp.find("table", {"class" : "exploit_list"}).findAll("td")
+			cve = tdList[1].getText()
+			cve = cve.replace(":", "-")
+			data = [date, cells[4].getText(), cells[5].getText(), source, cve]
+			run.Range(run.Cells(line, 1), run.Cells(line, 5)).Value = data
 			line += 1;
-	time.sleep(0.5)
 	return date
 
 for url in urlList:
@@ -93,13 +104,7 @@ url = 'https://www.hkcert.org/security-bulletin?p_p_id=3tech_list_security_bulle
 
 def getHkcert(url):
 	global line
-	s = Session()
-	req = Request('GET', url)
-	prepped = req.prepare()
-	prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
-	r = s.send(prepped)
-	print 'Get : %s' % url
-
+	r = getHttp(url)
 	soup = BeautifulSoup(r.content)
 	rows = soup.find("table", attrs={"class": "sdchk_table3"}).find("tbody").findAll("tr")
 	date = 0
@@ -108,10 +113,15 @@ def getHkcert(url):
 		date = datetime.strptime(cells[3].getText(), "%Y / %m / %d")  
 		if (begin <= date and date <= end):
 			source = 'https://www.hkcert.org/' + str(cells[1].find('a').get('href'))
-			data = [date, cells[1].getText(), "", source]
-			run.Range(run.Cells(line, 1), run.Cells(line, 4)).Value = data
+			sourceR = getHttp(source)
+			sourceHttp = BeautifulSoup(sourceR.content)
+			cveList = sourceHttp.find("div", {"id" : "content6"}).findAll("li")
+			cveData = ""
+			for cve in cveList:
+				cveData = cveData + cve.getText() + ","
+			data = [date, cells[1].getText(), "", source, cveData]
+			run.Range(run.Cells(line, 1), run.Cells(line, 5)).Value = data
 			line += 1;
-	time.sleep(0.5)
 	return date
 
 pg = 1;
@@ -122,21 +132,13 @@ while(1):
 	else:
 		break;
 
-'''
 
 url = 'http://www.nsfocus.net/index.php?act=sec_bug'
 
 def getNsfocus(url):
 	global line
-	s = Session()
-	req = Request('GET', url)
-	prepped = req.prepare()
-	prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
-	r = s.send(prepped)
-	print 'Get : %s' % url
-
+	r = getHttp(url)
 	r.encoding = r.apparent_encoding
-
 	soup = BeautifulSoup(r.text)
 	rows = soup.find("ul", attrs={"class": "vul_list"}).findAll("li")
 	cc = opencc.OpenCC('s2t')
@@ -152,7 +154,6 @@ def getNsfocus(url):
 			data = [date, title[:-15], "", source, m.group(0)]
 			run.Range(run.Cells(line, 1), run.Cells(line, 5)).Value = data
 			line += 1;
-	time.sleep(0.5)
 	return date
 
 pg = 1;
