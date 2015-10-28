@@ -71,7 +71,14 @@ def checkCVE(cve):
 		return "CVErepeat"
 	AllCVEList.append(cve)
 	return "New"
-	
+
+def inBlackList(title):
+	global blackList
+	for black in blackList:
+		if re.search(black, title, re.IGNORECASE):
+			return 1
+	return 0
+
 urlList = [
 	'https://www.exploit-db.com/remote/?order_by=date&order=desc',
 	'https://www.exploit-db.com/webapps/?order_by=date&order=desc',
@@ -88,14 +95,18 @@ def getExploitDB(url):
 	for row in rows:
 		cells = row.findAll("td")
 		date = datetime.strptime(cells[0].getText(), "%Y-%m-%d")  
-		if (begin <= date and date <= end): 
+		if (begin <= date and date <= end):
+			title = cells[4].getText()
+			status = ""
+			if inBlackList(title):
+				status = status + "black,"
 			source = cells[4].find('a').get('href')	
 			sourceR = getHttp(source)
 			sourceHttp = BeautifulSoup(sourceR.content)
 			tdList = sourceHttp.find("table", {"class" : "exploit_list"}).findAll("td")
 			cve = tdList[1].getText()
 			cve = cve.replace(":", "-")
-			data = [date, cells[4].getText(), cells[5].getText(), source, cve, checkCVE(cve)]
+			data = [date, title, cells[5].getText(), source, cve, status + checkCVE(cve)]
 			run.Range(run.Cells(line, 1), run.Cells(line, 6)).Value = data
 			line += 1;
 	return date
@@ -121,6 +132,10 @@ def getHkcert(url):
 		cells = row.findAll("td")
 		date = datetime.strptime(cells[3].getText(), "%Y / %m / %d")  
 		if (begin <= date and date <= end):
+			title = cells[1].getText()
+			statusData = ""
+			if inBlackList(title):
+				statusData = statusData + "black,"
 			source = 'https://www.hkcert.org/' + str(cells[1].find('a').get('href'))
 			sourceR = getHttp(source)
 			sourceHttp = BeautifulSoup(sourceR.content)
@@ -161,10 +176,13 @@ def getNsfocus(url):
 		if (begin <= date and date <= end):
 			# save utf8 tw use excel import OK
 			title = cc.convert(row.find("a").getText())
+			status = ""
+			if inBlackList(title):
+				status = status + "black,"
 			m = re.search('CVE-\d{4}-\d{4,7}', title)
 			cve = m.group(0)
 			source = "http://www.nsfocus.net" + str(row.find("a").get("href"))
-			data = [date, title[:-15], "", source, cve, checkCVE(cve)]
+			data = [date, title[:-15], "", source, cve, status + checkCVE(cve)]
 			run.Range(run.Cells(line, 1), run.Cells(line, 6)).Value = data
 			line += 1;
 	return date
