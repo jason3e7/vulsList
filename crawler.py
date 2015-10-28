@@ -11,6 +11,7 @@ from BeautifulSoup import BeautifulSoup
 from requests import Request, Session
 from datetime import datetime
 import opencc
+import re
 import win32com.client
 
 excelFilePath = "../vulsList/vulsList.xlsx"
@@ -48,7 +49,7 @@ line += 1
 begin = datetime(2015, 10, 27)
 end = datetime(2015, 10, 28)
 
-
+'''
 urlList = [
 	'https://www.exploit-db.com/remote/?order_by=date&order=desc',
 	'https://www.exploit-db.com/webapps/?order_by=date&order=desc',
@@ -121,6 +122,7 @@ while(1):
 	else:
 		break;
 
+'''
 
 url = 'http://www.nsfocus.net/index.php?act=sec_bug'
 
@@ -145,9 +147,10 @@ def getNsfocus(url):
 		if (begin <= date and date <= end):
 			# save utf8 tw use excel import OK
 			title = cc.convert(row.find("a").getText())
-			source = "http://www.nsfocus.net/" + str(row.find("a").get("href"))
-			data = [date, title, "", source]
-			run.Range(run.Cells(line, 1), run.Cells(line, 4)).Value = data
+			m = re.search('CVE-\d{4}-\d{4,7}', title)
+			source = "http://www.nsfocus.net" + str(row.find("a").get("href"))
+			data = [date, title[:-15], "", source, m.group(0)]
+			run.Range(run.Cells(line, 1), run.Cells(line, 5)).Value = data
 			line += 1;
 	time.sleep(0.5)
 	return date
