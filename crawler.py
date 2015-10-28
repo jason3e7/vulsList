@@ -41,17 +41,13 @@ for i in range(2, nrows):
 
 line = 1
 run = excelxls.Worksheets('run')
-'''
-run.Cells(1, 1).Value = 'Date'
-run.Cells(1, 2).Value = 'Title'
-run.Cells(1, 3).Value = 'Platform'
-'''
-data = ['Date', 'Title', 'Platform']
-run.Range(run.Cells(line, 1), run.Cells(line, 3)).Value = data
+data = ['Date', 'Title', 'Platform', 'Source', 'CVE']
+run.Range(run.Cells(line, 1), run.Cells(line, 5)).Value = data
 line += 1
 
-begin = datetime(2015, 10, 26)
+begin = datetime(2015, 10, 27)
 end = datetime(2015, 10, 28)
+
 
 urlList = [
 	'https://www.exploit-db.com/remote/?order_by=date&order=desc',
@@ -76,15 +72,13 @@ def getExploitDB(url):
 		cells = row.findAll("td")
 		date = datetime.strptime(cells[0].getText(), "%Y-%m-%d")  
 		if (begin <= date and date <= end): 
-			data = [date, cells[4].getText(), cells[5].getText()]
-			run.Range(run.Cells(line, 1), run.Cells(line, 3)).Value = data
+			data = [date, cells[4].getText(), cells[5].getText(), cells[4].find('a').get('href')]
+			run.Range(run.Cells(line, 1), run.Cells(line, 4)).Value = data
 			line += 1;
 	time.sleep(0.5)
 	return date
 
 for url in urlList:
-	run.Cells(line, 1).Value = url
-	line += 1
 	pg = 1;
 	while(1):
 		pgdate = getExploitDB(url+"&pg="+str(pg))	
@@ -94,10 +88,7 @@ for url in urlList:
 			break;
 
 
-
 url = 'https://www.hkcert.org/security-bulletin?p_p_id=3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_cur='
-run.Cells(line, 1).Value = url
-line += 1
 
 def getHkcert(url):
 	global line
@@ -114,9 +105,10 @@ def getHkcert(url):
 	for row in rows:
 		cells = row.findAll("td")
 		date = datetime.strptime(cells[3].getText(), "%Y / %m / %d")  
-		if (begin <= date and date <= end): 
-			data = [date, cells[1].getText()]
-			run.Range(run.Cells(line, 1), run.Cells(line, 2)).Value = data
+		if (begin <= date and date <= end):
+			source = 'https://www.hkcert.org/' + str(cells[1].find('a').get('href'))
+			data = [date, cells[1].getText(), "", source]
+			run.Range(run.Cells(line, 1), run.Cells(line, 4)).Value = data
 			line += 1;
 	time.sleep(0.5)
 	return date
@@ -130,10 +122,7 @@ while(1):
 		break;
 
 
-
 url = 'http://www.nsfocus.net/index.php?act=sec_bug'
-run.Cells(line, 1).Value = url
-line += 1
 
 def getNsfocus(url):
 	global line
@@ -156,8 +145,9 @@ def getNsfocus(url):
 		if (begin <= date and date <= end):
 			# save utf8 tw use excel import OK
 			title = cc.convert(row.find("a").getText())
-			data = [date, title]
-			run.Range(run.Cells(line, 1), run.Cells(line, 2)).Value = data
+			source = "http://www.nsfocus.net/" + str(row.find("a").get("href"))
+			data = [date, title, "", source]
+			run.Range(run.Cells(line, 1), run.Cells(line, 4)).Value = data
 			line += 1;
 	time.sleep(0.5)
 	return date
