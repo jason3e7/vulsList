@@ -22,6 +22,7 @@ excelapp = win32com.client.Dispatch("Excel.Application")
 excelapp.Visible = 0
 excelxls = excelapp.Workbooks.Open(excelFilePath)
 
+AllCVEList = []
 whiteList = []
 blackList = []
 
@@ -46,8 +47,8 @@ for i in range(2, nrows):
 
 line = 1
 run = excelxls.Worksheets('run')
-data = ['Date', 'Title', 'Platform', 'Source', 'CVE']
-run.Range(run.Cells(line, 1), run.Cells(line, 5)).Value = data
+data = ['Date', 'Title', 'Platform', 'Source', 'CVE', 'Status']
+run.Range(run.Cells(line, 1), run.Cells(line, 6)).Value = data
 line += 1
 
 begin = datetime(2015, 10, 26)
@@ -62,6 +63,15 @@ def getHttp(url):
 	print 'Get : %s' % url
 	return s.send(prepped)
 
+def checkCVE(cve):
+	global AllCVEList
+	if re.match('CVE-\d{4}-\d{4,7}', cve) is None:
+		return "NoCVE"
+	if cve in AllCVEList:
+		return "CVErepeat"
+	AllCVEList.append(cve)
+	return "New"
+	
 urlList = [
 	'https://www.exploit-db.com/remote/?order_by=date&order=desc',
 	'https://www.exploit-db.com/webapps/?order_by=date&order=desc',
@@ -85,8 +95,8 @@ def getExploitDB(url):
 			tdList = sourceHttp.find("table", {"class" : "exploit_list"}).findAll("td")
 			cve = tdList[1].getText()
 			cve = cve.replace(":", "-")
-			data = [date, cells[4].getText(), cells[5].getText(), source, cve]
-			run.Range(run.Cells(line, 1), run.Cells(line, 5)).Value = data
+			data = [date, cells[4].getText(), cells[5].getText(), source, cve, checkCVE(cve)]
+			run.Range(run.Cells(line, 1), run.Cells(line, 6)).Value = data
 			line += 1;
 	return date
 
@@ -98,7 +108,6 @@ for url in urlList:
 			pg += 1
 		else:
 			break;
-
 
 url = 'https://www.hkcert.org/security-bulletin?p_p_id=3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_cur='
 
@@ -117,10 +126,13 @@ def getHkcert(url):
 			sourceHttp = BeautifulSoup(sourceR.content)
 			cveList = sourceHttp.find("div", {"id" : "content6"}).findAll("li")
 			cveData = ""
+			statusData = ""
 			for cve in cveList:
-				cveData = cveData + cve.getText() + ","
-			data = [date, cells[1].getText(), "", source, cveData]
-			run.Range(run.Cells(line, 1), run.Cells(line, 5)).Value = data
+				cveNum = cve.getText()
+				cveData = cveData + cveNum + ","
+				statusData = statusData + checkCVE(cveNum) + ","
+			data = [date, cells[1].getText(), "", source, cveData, statusData]
+			run.Range(run.Cells(line, 1), run.Cells(line, 6)).Value = data
 			line += 1;
 	return date
 
@@ -150,9 +162,10 @@ def getNsfocus(url):
 			# save utf8 tw use excel import OK
 			title = cc.convert(row.find("a").getText())
 			m = re.search('CVE-\d{4}-\d{4,7}', title)
+			cve = m.group(0)
 			source = "http://www.nsfocus.net" + str(row.find("a").get("href"))
-			data = [date, title[:-15], "", source, m.group(0)]
-			run.Range(run.Cells(line, 1), run.Cells(line, 5)).Value = data
+			data = [date, title[:-15], "", source, cve, checkCVE(cve)]
+			run.Range(run.Cells(line, 1), run.Cells(line, 6)).Value = data
 			line += 1;
 	return date
 
