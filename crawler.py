@@ -47,12 +47,12 @@ for i in range(2, nrows):
 
 line = 1
 run = excelxls.Worksheets('run')
-data = ['Date', 'Title', 'Platform', 'Source', 'CVE', 'Status']
-run.Range(run.Cells(line, 1), run.Cells(line, 6)).Value = data
+data = ['Date', 'Title', 'Platform', 'Source', 'CVE', 'Risk', 'Status']
+run.Range(run.Cells(line, 1), run.Cells(line, 7)).Value = data
 line += 1
 
-begin = datetime(2015, 10, 26)
-end = datetime(2015, 10, 28)
+begin = datetime(2015, 10, 22)
+end = datetime(2015, 10, 29)
 
 def getHttp(url):
 	time.sleep(sTime)
@@ -78,6 +78,18 @@ def inBlackList(title):
 		if re.search(black, title, re.IGNORECASE):
 			return 1
 	return 0
+
+def getRisk(cve):
+	r = getHttp("https://web.nvd.nist.gov/view/vuln/detail?vulnId=" + cve)
+	contents = BeautifulSoup(r.content).find("div", {"id": "contents"})
+	if re.search("Could not find vulnerability.", str(contents)):
+		return "Not Create"
+	idName = "BodyPlaceHolder_cplPageContent_plcZones_lt_zoneCenter_VulnerabilityDetail_VulnFormView_VulnCvssPanel"
+	try: 
+		aList = contents.find("div", {"id": idName}).findAll("a")
+		return aList[0].getText()
+	except:
+		return "Not Create"
 
 urlList = [
 	'https://www.exploit-db.com/remote/?order_by=date&order=desc',
@@ -106,8 +118,12 @@ def getExploitDB(url):
 			tdList = sourceHttp.find("table", {"class" : "exploit_list"}).findAll("td")
 			cve = tdList[1].getText()
 			cve = cve.replace(":", "-")
-			data = [date, title, cells[5].getText(), source, cve, status + checkCVE(cve)]
-			run.Range(run.Cells(line, 1), run.Cells(line, 6)).Value = data
+			cveStatus = checkCVE(cve)
+			risk = ""
+			if (cveStatus != "NoCVE"):
+				risk = getRisk(cve)
+			data = [date, title, cells[5].getText(), source, cve, risk, status + cveStatus]
+			run.Range(run.Cells(line, 1), run.Cells(line, 7)).Value = data
 			line += 1;
 	return date
 
@@ -119,6 +135,7 @@ for url in urlList:
 			pg += 1
 		else:
 			break;
+
 
 url = 'https://www.hkcert.org/security-bulletin?p_p_id=3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_cur='
 
@@ -139,15 +156,20 @@ def getHkcert(url):
 			source = 'https://www.hkcert.org/' + str(cells[1].find('a').get('href'))
 			sourceR = getHttp(source)
 			sourceHttp = BeautifulSoup(sourceR.content)
-			cveList = sourceHttp.find("div", {"id" : "content6"}).findAll("li")
+			try: 
+				cveList = sourceHttp.find("div", {"id" : "content6"}).findAll("li")
+			except:
+				cveList = ""
 			cveData = ""
 			statusData = ""
+			riskData = ""
 			for cve in cveList:
 				cveNum = cve.getText()
 				cveData = cveData + cveNum + ","
 				statusData = statusData + checkCVE(cveNum) + ","
-			data = [date, cells[1].getText(), "", source, cveData, statusData]
-			run.Range(run.Cells(line, 1), run.Cells(line, 6)).Value = data
+				riskData = riskData + getRisk(cveNum) + ","
+			data = [date, cells[1].getText(), "", source, cveData, riskData, statusData]
+			run.Range(run.Cells(line, 1), run.Cells(line, 7)).Value = data
 			line += 1;
 	return date
 
@@ -182,8 +204,8 @@ def getNsfocus(url):
 			m = re.search('CVE-\d{4}-\d{4,7}', title)
 			cve = m.group(0)
 			source = "http://www.nsfocus.net" + str(row.find("a").get("href"))
-			data = [date, title[:-15], "", source, cve, status + checkCVE(cve)]
-			run.Range(run.Cells(line, 1), run.Cells(line, 6)).Value = data
+			data = [date, title[:-15], "", source, cve, getRisk(cve), status + checkCVE(cve)]
+			run.Range(run.Cells(line, 1), run.Cells(line, 7)).Value = data
 			line += 1;
 	return date
 
