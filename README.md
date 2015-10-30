@@ -9,10 +9,10 @@
 - opencc
 
 # status priority #
-cve first,  
-1. history
-2. repeate
-3. new
+cve first 
+ 1. history
+ 2. repeate
+ 3. new
 	1. black
 	2. white
 	3. notInList
