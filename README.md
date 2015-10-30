@@ -13,7 +13,7 @@ cve first
  1. history
  2. repeate
  3. new
-	1. black
-	2. white
-	3. notInList
+  1. black
+  2. white
+  3. notInList
 
