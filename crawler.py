@@ -18,6 +18,9 @@ sTime = 0.1
 
 excelFilePath = "../vulsList/vulsList.xlsx"
 
+begin = datetime(2015, 11, 6)
+end = datetime(2015, 11, 10)
+
 excelapp = win32com.client.Dispatch("Excel.Application")
 excelapp.Visible = 0
 excelxls = excelapp.Workbooks.Open(excelFilePath)
@@ -25,8 +28,21 @@ excelxls = excelapp.Workbooks.Open(excelFilePath)
 AllCVEList = []
 whiteList = []
 blackList = []
+historyCVEs = []
 
 print "Read xlsx file"
+
+history = excelxls.Worksheets("vulsHistory")
+used = history.UsedRange
+nrows = used.Row + used.Rows.Count
+
+for i in range(2, nrows):
+	CVEs = str(history.Cells(i, 5))
+	if "," in CVEs : 
+		historyCVEs = historyCVEs + CVEs.split(',')
+	else :
+		if (CVEs != "None") :
+			historyCVEs.append(CVEs)
 
 wl = excelxls.Worksheets("whiteList")
 used = wl.UsedRange
@@ -50,9 +66,6 @@ run = excelxls.Worksheets('run')
 data = ['Date', 'Title', 'Platform', 'Source', 'CVE', 'Risk', 'Status']
 run.Range(run.Cells(line, 1), run.Cells(line, 7)).Value = data
 line += 1
-
-begin = datetime(2015, 10, 22)
-end = datetime(2015, 10, 29)
 
 def getHttp(url):
 	time.sleep(sTime)
@@ -121,23 +134,15 @@ def getExploitDB(url):
 			cveStatus = checkCVE(cve)
 			risk = ""
 			if (cveStatus != "NoCVE"):
-				risk = getRisk(cve)
+				risk = getRisk(cve) 
+			else :
+				cve = ""
 			data = [date, title, cells[5].getText(), source, cve, risk, status + cveStatus]
 			run.Range(run.Cells(line, 1), run.Cells(line, 7)).Value = data
 			line += 1;
 	return date
 
-for url in urlList:
-	pg = 1;
-	while(1):
-		pgdate = getExploitDB(url+"&pg="+str(pg))	
-		if (pgdate >= begin):
-			pg += 1
-		else:
-			break;
-
-
-url = 'https://www.hkcert.org/security-bulletin?p_p_id=3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_cur='
+hkcertURL = 'https://www.hkcert.org/security-bulletin?p_p_id=3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet&_3tech_list_security_bulletin_full_WAR_3tech_list_security_bulletin_fullportlet_cur='
 
 def getHkcert(url):
 	global line
@@ -163,26 +168,27 @@ def getHkcert(url):
 			cveData = ""
 			statusData = ""
 			riskData = ""
-			for cve in cveList:
-				cveNum = cve.getText()
-				cveData = cveData + cveNum + ","
-				statusData = statusData + checkCVE(cveNum) + ","
-				riskData = riskData + getRisk(cveNum) + ","
+			if (cveList != "") :
+				cveNum = cveList[0].getText()
+				cveData = cveNum
+				statusData = checkCVE(cveNum)
+				riskData = getRisk(cveNum)
+				if (statusData == "NoCVE") : 
+					cveData = ""
+				cveList.pop(0)
+			if (len(cveList) != 1) :
+				for cve in cveList:
+					cveNum = cve.getText()
+					cveData = cveData + "," + cveNum
+					statusData = statusData + "," + checkCVE(cveNum)
+					riskData = riskData + "," + getRisk(cveNum)
 			data = [date, cells[1].getText(), "", source, cveData, riskData, statusData]
 			run.Range(run.Cells(line, 1), run.Cells(line, 7)).Value = data
 			line += 1;
 	return date
 
-pg = 1;
-while(1):
-	pgdate = getHkcert(url+str(pg))	
-	if (pgdate >= begin):
-		pg += 1
-	else:
-		break;
 
-
-url = 'http://www.nsfocus.net/index.php?act=sec_bug'
+nsfocusURL = 'http://www.nsfocus.net/index.php?act=sec_bug'
 
 def getNsfocus(url):
 	global line
@@ -209,14 +215,34 @@ def getNsfocus(url):
 			line += 1;
 	return date
 
+
+for url in urlList:
+	pg = 1;
+	while(1):
+		pgdate = getExploitDB(url+"&pg="+str(pg))	
+		if (pgdate >= begin):
+			pg += 1
+		else:
+			break;
+
+
 pg = 1;
 while(1):
-	pgdate = getNsfocus(url+"&page="+str(pg))	
+	pgdate = getHkcert(hkcertURL+str(pg))	
 	if (pgdate >= begin):
 		pg += 1
 	else:
 		break;
 
+''' web site error
+pg = 1;
+while(1):
+	pgdate = getNsfocus(nsfocusURL+"&page="+str(pg))	
+	if (pgdate >= begin):
+		pg += 1
+	else:
+		break;
+'''
 
 excelxls.Save()
 excelapp.Quit()
