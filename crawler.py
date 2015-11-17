@@ -131,16 +131,47 @@ def getRisk(cve) :
 	r = getHttp("https://web.nvd.nist.gov/view/vuln/detail?vulnId=" + cve)
 	contents = BeautifulSoup(r.content).find("div", {"id": "contents"})
 	if re.search("Could not find vulnerability.", str(contents)) :
-		return "Not Create"
-	idName = "BodyPlaceHolder_cplPageContent_plcZones_lt_zoneCenter_VulnerabilityDetail_VulnFormView_VulnCvssPanel"
-	try : 
-		aList = contents.find("div", {"id": idName}).findAll("a")
-		return aList[0].getText()
-	except :
-		return "Not Create"
+		return "Not Found"
+	firstRow = contents.find("div", {"class" : "cvssDetail"}).find("div")
+ 	reRisk = re.search('\((.+?)\)', firstRow.getText())
+	return reRisk.group(1)
 
 def getRiskByCVElist(CVElist) :
-	return ""
+	if (len(CVElist) == 1) :
+		return getRisk(CVElist[0])
+	riskMap = {"LOW" : 0, "MEDIUM" : 1, "HIGH" : 2}
+	riskFlags = [0, 0, 0]
+	for CVE in CVElist :
+		risk = getRisk(CVE)
+		if (risk == "Not Found") : 
+			continue
+		riskFlags[riskMap[risk]] = 1
+		if (riskFlags[0] == 1 and riskFlags[2] == 1) :
+			break
+	riskMap = dict((value, key) for key, value in riskMap.iteritems())
+	risksLen = riskFlags.count(1)
+	if risksLen == 1 : 
+		return riskMap[riskFlags.index(1)]
+	elif risksLen == 2:
+		output = ""
+		first = 1
+		for index, riskFlag in enumerate(riskFlags) :
+			if (riskFlag == 1) :
+				if (first == 1) :
+					output = riskMap[index] + " ~ "
+					first = 0
+				else :
+					output = output + riskMap[index]
+		return output
+	elif risksLen == 3 :
+		return riskMap[0] + " ~ " + riskMap[2]
+	return "ERROR"
+
+def riskEn2Tw(risk) :
+	risk = risk.replace("LOW", u"低")
+	risk = risk.replace("MEDIUM", u"中")
+	risk = risk.replace("HIGH", u"高")
+	return risk
 
 urlList = [
 	'https://www.exploit-db.com/remote/?order_by=date&order=desc',
@@ -190,7 +221,7 @@ def getExploitDB(url) :
 		if inWhiteList(title) :
 			data[6] = "White"
 		data[4] = CVEnumber
-		data[5] = getRisk(CVEnumber)	
+		data[5] = riskEn2Tw(getRisk(CVEnumber))
 		setData(data)
 	return date
 
@@ -232,7 +263,7 @@ def getHkcert(url) :
 			data[2] = platform
 			data[6] = 'White'
 		data[4] = ",".join(CVElist)
-		data[5] = getRiskByCVElist(CVElist)	
+		data[5] = riskEn2Tw(getRiskByCVElist(CVElist))
 		setData(data)
 	return date
 
@@ -270,7 +301,7 @@ def getNsfocus(url) :
 			data[2] = platform
 			data[6] = 'White'
 		data[4] = CVEnumber
-		data[5] = getRisk(CVEnumber)	
+		data[5] = riskEn2Tw(getRisk(CVEnumber))
 		setData(data)
 	return date
 
