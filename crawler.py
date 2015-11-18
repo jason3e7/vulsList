@@ -18,8 +18,8 @@ sTime = 0.1
 
 excelFilePath = "../vulsList/vulsList.xlsx"
 
-begin = datetime(2015, 11, 5)
-end = datetime(2015, 11, 12)
+begin = datetime(2015, 11, 12)
+end = datetime(2015, 11, 19)
 
 excelapp = win32com.client.Dispatch("Excel.Application")
 excelapp.Visible = 0
@@ -130,7 +130,7 @@ def inWhiteList(title) :
 def getRisk(cve) :
 	r = getHttp("https://web.nvd.nist.gov/view/vuln/detail?vulnId=" + cve)
 	contents = BeautifulSoup(r.content).find("div", {"id": "contents"})
-	if re.search("Could not find vulnerability.", str(contents)) :
+	if re.search("cvssDetail", str(contents)) == None :
 		return "Not Found"
 	firstRow = contents.find("div", {"class" : "cvssDetail"}).find("div")
  	reRisk = re.search('\((.+?)\)', firstRow.getText())
@@ -150,7 +150,9 @@ def getRiskByCVElist(CVElist) :
 			break
 	riskMap = dict((value, key) for key, value in riskMap.iteritems())
 	risksLen = riskFlags.count(1)
-	if risksLen == 1 : 
+	if risksLen == 0 :
+		return "Not Found"
+	elif risksLen == 1 : 
 		return riskMap[riskFlags.index(1)]
 	elif risksLen == 2:
 		output = ""
@@ -283,6 +285,10 @@ def getNsfocus(url) :
 		title = cc.convert(row.find("a").getText())	
 		source = "http://www.nsfocus.net" + str(row.find("a").get("href"))
 		CVEre = re.search('CVE-\d{4}-\d{4,7}', title)
+		if (CVEre == None) :
+			sourceRequest = getHttp(source)
+			sourceHttp = BeautifulSoup(sourceRequest.content)
+			CVEre = re.search('CVE-\d{4}-\d{4,7}', str(sourceHttp))
 		CVEnumber = CVEre.group(0)
 		if (checkDate(begin, date, end) == False) :
 			continue
