@@ -217,13 +217,16 @@ def getExploitDB(url) :
 		CVEnumber = tdList[1].getText()
 		CVEnumber = CVEnumber.replace(":", "-")
 		data[6] = checkCVE(CVEnumber)
-		if (data[6] != "New") : 
+		if (data[6] == "CVEreap") : 
 			setData(data)
 			continue
-		if inWhiteList(title) :
+		if (data[6] == "New") :
+			data[4] = CVEnumber
+			data[5] = riskEn2Tw(getRisk(CVEnumber))
+		platform = inWhiteList(title)
+		if (platform != False) :
+			data[2] = platform
 			data[6] = "White"
-		data[4] = CVEnumber
-		data[5] = riskEn2Tw(getRisk(CVEnumber))
 		setData(data)
 	return date
 
@@ -237,7 +240,7 @@ def getHkcert(url) :
 	for row in rows :
 		cells = row.findAll("td")
 		date = datetime.strptime(cells[3].getText(), "%Y / %m / %d")  
-		title = cells[1].getText()
+		title = cells[1].contents[0].getText()
 		source = 'https://www.hkcert.org/' + str(cells[1].find('a').get('href'))
 		if (checkDate(begin, date, end) == False) :
 			continue
@@ -299,15 +302,16 @@ def getNsfocus(url) :
 			setData(data)
 			continue
 		data[6] = checkCVE(CVEnumber)
-		if (data[6] != "New") : 
+		if (data[6] == "CVErepeat") : 
 			setData(data)
 			continue
+		if (data[6] == "New") :
+			data[4] = CVEnumber
+			data[5] = riskEn2Tw(getRisk(CVEnumber))
 		platform = inWhiteList(title)
 		if (platform != False) :
 			data[2] = platform
 			data[6] = 'White'
-		data[4] = CVEnumber
-		data[5] = riskEn2Tw(getRisk(CVEnumber))
 		setData(data)
 	return date
 
