@@ -18,8 +18,8 @@ sTime = 0.1
 
 excelFilePath = "../vulsList/vulsList.xlsx"
 
-begin = datetime(2015, 11, 12)
-end = datetime(2015, 11, 19)
+begin = datetime(2015, 11, 19)
+end = datetime(2015, 11, 26)
 
 excelapp = win32com.client.Dispatch("Excel.Application")
 excelapp.Visible = 0
@@ -31,7 +31,7 @@ blackList = []
 
 print " = Read xlsx file = "
 
-history = excelxls.Worksheets("vulsHistory")
+history = excelxls.Worksheets("run1105_1119")
 used = history.UsedRange
 nrows = used.Row + used.Rows.Count
 
@@ -188,6 +188,9 @@ def setData(data) :
 	if (data[6] == "Black" or data[6] == "CVErepeat") :
 		# gray
 		run.Rows(line).Interior.ColorIndex = 48
+	elif (data[6] == "White" and data[4] == "") :
+		# orange
+		run.Rows(line).Interior.ColorIndex = 40
 	elif (data[6] != "White") :
 		# yellow
 		run.Rows(line).Interior.ColorIndex = 36
@@ -214,15 +217,20 @@ def getExploitDB(url) :
 		sourceRequest = getHttp(source)
 		sourceHttp = BeautifulSoup(sourceRequest.content)
 		tdList = sourceHttp.find("table", {"class" : "exploit_list"}).findAll("td")
-		CVEnumber = tdList[1].getText()
-		CVEnumber = CVEnumber.replace(":", "-")
-		data[6] = checkCVE(CVEnumber)
+		aList = tdList[1].findAll("a")
+	
+		CVElist = "NoCVE"
+		if (len(aList) != 0) :
+			CVElist = re.findall('CVE-\d{4}-\d{4,7}', str(aList[0]))
+			CVElist = filterCVEs(CVElist)
+
+		data[6] = checkCVEs(CVElist)
 		if (data[6] == "CVEreap") : 
 			setData(data)
 			continue
 		if (data[6] == "New") :
-			data[4] = CVEnumber
-			data[5] = riskEn2Tw(getRisk(CVEnumber))
+			data[4] = ",".join(CVElist)
+			data[5] = riskEn2Tw(getRiskByCVElist(CVElist))
 		platform = inWhiteList(title)
 		if (platform != False) :
 			data[2] = platform
@@ -287,12 +295,15 @@ def getNsfocus(url) :
 		# save utf8 tw use excel import OK
 		title = cc.convert(row.find("a").getText())	
 		source = "http://www.nsfocus.net" + str(row.find("a").get("href"))
+		CVEnumber = ""
 		CVEre = re.search('CVE-\d{4}-\d{4,7}', title)
 		if (CVEre == None) :
 			sourceRequest = getHttp(source)
 			sourceHttp = BeautifulSoup(sourceRequest.content)
 			CVEre = re.search('CVE-\d{4}-\d{4,7}', str(sourceHttp))
-		CVEnumber = CVEre.group(0)
+		if (CVEre != None) :	
+			CVEnumber = CVEre.group(0)
+
 		if (checkDate(begin, date, end) == False) :
 			continue
 		title = title.replace("(" + CVEnumber + ")", "")
