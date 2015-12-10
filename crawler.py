@@ -18,8 +18,8 @@ sTime = 0.1
 
 excelFilePath = "../vulsList/vulsList.xlsx"
 
-begin = datetime(2015, 11, 26)
-end = datetime(2015, 12, 3)
+begin = datetime(2015, 12, 3)
+end = datetime(2015, 12, 10)
 
 excelapp = win32com.client.Dispatch("Excel.Application")
 excelapp.Visible = 0
@@ -31,7 +31,7 @@ blackList = []
 
 print " = Read xlsx file = "
 
-history = excelxls.Worksheets("run1105_1126")
+history = excelxls.Worksheets("run1105_1203")
 used = history.UsedRange
 nrows = used.Row + used.Rows.Count
 
