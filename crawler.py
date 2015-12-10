@@ -79,8 +79,13 @@ def getHttp(url) :
 	req = Request('GET', url)
 	prepped = req.prepare()
 	prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
-	print 'Get : %s' % url
-	return s.send(prepped)
+	while 1:
+		print 'Get : %s' % url
+		response = s.send(prepped)
+		if (response.status_code == 200) :
+			return response
+		print response.status_code
+		time.sleep(1)
 
 def checkDate(begin, date, end) :
 	if (begin <= date and date <= end) :
@@ -297,15 +302,16 @@ def getNsfocus(url) :
 		source = "http://www.nsfocus.net" + str(row.find("a").get("href"))
 		CVEnumber = ""
 		CVEre = re.search('CVE-\d{4}-\d{4,7}', title)
+		if (checkDate(begin, date, end) == False) :
+			continue
+		
 		if (CVEre == None) :
 			sourceRequest = getHttp(source)
 			sourceHttp = BeautifulSoup(sourceRequest.content)
 			CVEre = re.search('CVE-\d{4}-\d{4,7}', str(sourceHttp))
 		if (CVEre != None) :	
 			CVEnumber = CVEre.group(0)
-
-		if (checkDate(begin, date, end) == False) :
-			continue
+		
 		title = title.replace("(" + CVEnumber + ")", "")
 		data = [date, title, "", source, CVEnumber, "", ""]
 		if inBlackList(title) :
