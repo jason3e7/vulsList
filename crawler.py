@@ -79,13 +79,17 @@ def getHttp(url) :
 	req = Request('GET', url)
 	prepped = req.prepare()
 	prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
+	count = 0
 	while 1:
+		if (count >= 5) :
+			return response
 		print 'Get : %s' % url
 		response = s.send(prepped)
 		if (response.status_code == 200) :
 			return response
 		print response.status_code
 		time.sleep(1)
+		count += 1
 
 def checkDate(begin, date, end) :
 	if (begin <= date and date <= end) :
