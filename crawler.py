@@ -18,8 +18,8 @@ sTime = 0.1
 
 excelFilePath = "../vulsList/vulsList.xlsx"
 
-begin = datetime(2015, 12, 10)
-end = datetime(2015, 12, 17)
+begin = datetime(2015, 12, 17)
+end = datetime(2015, 12, 24)
 
 excelapp = win32com.client.Dispatch("Excel.Application")
 excelapp.Visible = 0
@@ -31,7 +31,7 @@ blackList = []
 
 print " = Read xlsx file = "
 
-history = excelxls.Worksheets("run1105_1203")
+history = excelxls.Worksheets("run1105_1224")
 used = history.UsedRange
 nrows = used.Row + used.Rows.Count
 
@@ -81,7 +81,7 @@ def getHttp(url) :
 	prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
 	count = 0
 	while 1:
-		if (count >= 5) :
+		if (count >= 3) :
 			return response
 		print 'Get : %s' % url
 		response = s.send(prepped)
@@ -139,10 +139,12 @@ def inWhiteList(title) :
 def getRisk(cve) :
 	r = getHttp("https://web.nvd.nist.gov/view/vuln/detail?vulnId=" + cve)
 	contents = BeautifulSoup(r.content).find("div", {"id": "contents"})
-	if re.search("cvssDetail", str(contents)) == None :
+	if re.search("cvss-detail", str(contents)) == None :
 		return "Not Found"
-	firstRow = contents.find("div", {"class" : "cvssDetail"}).find("div")
- 	reRisk = re.search('\((.+?)\)', firstRow.getText())
+	firstRow = contents.findAll("div", {"class" : "cvss-detail"})[0].find("div")
+ 	if "CVSS v3" in firstRow.getText() :
+		firstRow = contents.findAll("div", {"class" : "cvss-detail"})[1].find("div")
+	reRisk = re.search('\((.+?)\)', firstRow.getText())
 	return reRisk.group(1)
 
 def getRiskByCVElist(CVElist) :
@@ -230,11 +232,12 @@ def getExploitDB(url) :
 	
 		CVElist = "NoCVE"
 		if (len(aList) != 0) :
-			CVElist = re.findall('CVE-\d{4}-\d{4,7}', str(aList[0]))
-			CVElist = filterCVEs(CVElist)
-
+			CVElistOrigin = re.findall('CVE-\d{4}-\d{4,7}', str(aList[0]))
+			CVElist = filterCVEs(CVElistOrigin)
+		
 		data[6] = checkCVEs(CVElist)
-		if (data[6] == "CVEreap") : 
+		if (data[6] == "CVErepeat") : 
+			data[4] = ",".join(CVElistOrigin)
 			setData(data)
 			continue
 		if (data[6] == "New") :
@@ -272,11 +275,13 @@ def getHkcert(url) :
 		CVElist = "NoCVE"
 		if (content6 != None) :
 			liList = content6.findAll("li")
-			CVElist = []
+			CVElistOrigin = []
 			for li in liList :
-				CVElist.append(li.getText())
-			CVElist = filterCVEs(CVElist)
+				CVElistOrigin.append(li.getText())
+			CVElist = filterCVEs(CVElistOrigin)
 		data[6] = checkCVEs(CVElist)
+		if (data[6] == "CVErepeat") : 
+			data[4] = ",".join(CVElistOrigin)
 		if (data[6] != "New") : 
 			setData(data)
 			continue
@@ -324,6 +329,7 @@ def getNsfocus(url) :
 			continue
 		data[6] = checkCVE(CVEnumber)
 		if (data[6] == "CVErepeat") : 
+			data[4] = CVEnumber
 			setData(data)
 			continue
 		if (data[6] == "New") :
