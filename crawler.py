@@ -9,7 +9,7 @@ import string
 import time
 from BeautifulSoup import BeautifulSoup
 from requests import Request, Session
-from datetime import datetime
+import datetime
 import opencc
 import re
 from openpyxl import load_workbook
@@ -17,11 +17,21 @@ from openpyxl.styles import PatternFill
 
 sTime = 0.1
 
-excelFilename = 'vulsList.xlsx'
-wb = load_workbook(excelFilename)
+today = datetime.datetime.combine(datetime.datetime.now().date(), datetime.time.min)
+end = today - datetime.timedelta(days = 1)
+begin = end - datetime.timedelta(days = 6)
+prevFilename = 'vulsList_' + begin.strftime('%Y%m%d') + '.xlsx'
 
-begin = datetime(2015, 12, 30)
-end = datetime(2016, 1, 7)
+print 'today : ' + str(today)
+print 'range : ' + str(begin) + ' ~ ' + str(end)
+
+wb = load_workbook(prevFilename)
+
+oldSheet = wb.get_sheet_by_name('vulsHistory')
+wb.remove_sheet(oldSheet)
+vulsHistory = wb['vuls']
+vulsHistory.title = 'vulsHistory'
+vuls = wb.create_sheet(title='vuls')
 
 AllCVEList = []
 whiteList = []
@@ -29,11 +39,10 @@ blackList = []
 
 print " = Read xlsx file = "
 
-history = wb['run1105_1230']
-nrows = history.max_row + 1
+nrows = vulsHistory.max_row + 1
 
 for i in range(2, nrows) :
-	CVEs = str(history.cell(row = i, column = 5).value)
+	CVEs = str(vulsHistory.cell(row = i, column = 5).value)
 	if "," in CVEs : 
 		AllCVEList = AllCVEList + CVEs.split(',')
 	else :
@@ -59,6 +68,8 @@ def debugInputInfo() :
 	print whiteList
 	print 'AllCVEList'
 	print AllCVEList
+
+debugInputInfo() 
 
 print " = Read xlsx file done = "
 
@@ -188,17 +199,17 @@ yellowFill = PatternFill(start_color='FFFFFF99', end_color='FFFFFF99', fill_type
 def setData(data) :
 	global line	
 	for i in range(1, 8) :
-		run.cell(row = line, column = i).value = data[i - 1]
+		vuls.cell(row = line, column = i).value = data[i - 1]
 
 	if (data[6] == "Black" or data[6] == "CVErepeat") :
 		for i in range(1, 8) :
-			run.cell(row = line, column = i).fill = grayFill
+			vuls.cell(row = line, column = i).fill = grayFill
 	elif (data[6] == "White" and data[4] == "") :
 		for i in range(1, 8) :
-			run.cell(row = line, column = i).fill = orangeFill
+			vuls.cell(row = line, column = i).fill = orangeFill
 	elif (data[6] != "White" and line != 1) :
 		for i in range(1, 8) :
-			run.cell(row = line, column = i).fill = yellowFill
+			vuls.cell(row = line, column = i).fill = yellowFill
 	line += 1
 
 def getExploitDB(url) :
@@ -208,7 +219,7 @@ def getExploitDB(url) :
 	date = 0
 	for row in rows :
 		cells = row.findAll("td")
-		date = datetime.strptime(cells[0].getText(), "%Y-%m-%d")  
+		date = datetime.datetime.strptime(cells[0].getText(), "%Y-%m-%d")  
 		title = cells[4].getText()
 		platform = cells[5].getText()
 		source = cells[4].find('a').get('href')	
@@ -253,7 +264,7 @@ def getHkcert(url) :
 	date = 0
 	for row in rows :
 		cells = row.findAll("td")
-		date = datetime.strptime(cells[3].getText(), "%Y / %m / %d")  
+		date = datetime.datetime.strptime(cells[3].getText(), "%Y / %m / %d")  
 		title = cells[1].contents[0].getText()
 		source = 'https://www.hkcert.org/' + str(cells[1].find('a').get('href'))
 		if (checkDate(begin, date, end) == False) :
@@ -299,7 +310,7 @@ def getNsfocus(url) :
 	date = 0
 	for row in rows :
 		# cn word print ERROR but save file OK
-		date = datetime.strptime(row.find("span").getText(), "%Y-%m-%d")  
+		date = datetime.datetime.strptime(row.find("span").getText(), "%Y-%m-%d")  
 		# save utf8 tw use excel import OK
 		title = cc.convert(row.find("a").getText())	
 		source = "http://www.nsfocus.net" + str(row.find("a").get("href"))
@@ -365,7 +376,6 @@ def crawlNsfocus() :
 			break;
 
 line = 1
-run = wb['run']
 data = ['Date', 'Title', 'Platform', 'Source', 'CVE', 'Risk', 'Status']
 setData(data)
 
@@ -373,4 +383,5 @@ crawlExploitDB()
 crawlHkcert()
 crawlNsfocus()
 
-wb.save(excelFilename)
+runTime = today.strftime('%Y%m%d')
+wb.save('vulsList_' + runTime + '.xlsx')
