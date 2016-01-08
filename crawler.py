@@ -13,49 +13,48 @@ from datetime import datetime
 import opencc
 import re
 import win32com.client
+from openpyxl import load_workbook
 
 sTime = 0.1
 
 excelFilePath = "../vulsList/vulsList.xlsx"
+excelFileName = "vulsList.xlsx"
 
 begin = datetime(2015, 12, 30)
 end = datetime(2016, 1, 7)
-
-excelapp = win32com.client.Dispatch("Excel.Application")
-excelapp.Visible = 0
-excelxls = excelapp.Workbooks.Open(excelFilePath)
 
 AllCVEList = []
 whiteList = []
 blackList = []
 
+filename = 'vulsList.xlsx'
+wb = load_workbook(filename)
+
 print " = Read xlsx file = "
 
-history = excelxls.Worksheets("run1105_1230")
-used = history.UsedRange
-nrows = used.Row + used.Rows.Count
+history = wb['run1105_1230']
+nrows = history.max_row + 1
 
 for i in range(2, nrows) :
-	CVEs = str(history.Cells(i, 5))
+	CVEs = str(history.cell(row = i, column = 5).value)
 	if "," in CVEs : 
 		AllCVEList = AllCVEList + CVEs.split(',')
 	else :
 		if (CVEs != "None") :
 			AllCVEList.append(CVEs)
 
-wl = excelxls.Worksheets("whiteList")
-used = wl.UsedRange
-nrows = used.Row + used.Rows.Count
+wl = wb['whiteList']
+nrows = wl.max_row + 1
+wl['A1'].value = 42
 
 for i in range(2, nrows) :
-	whiteList.append(str(wl.Cells(i, 1)))
+	whiteList.append(str(wl.cell(row = i, column = 1).value))
 
-bl = excelxls.Worksheets("blackList")
-used = bl.UsedRange
-nrows = used.Row + used.Rows.Count
+bl = wb['blackList']
+nrows = bl.max_row + 1
 
 for i in range(2, nrows) :
-	blackList.append(str(bl.Cells(i, 1)))
+	blackList.append(str(bl.cell(row = i, column = 1).value))
 
 def debugInputInfo() :
 	print 'blackList'
@@ -65,7 +64,13 @@ def debugInputInfo() :
 	print 'AllCVEList'
 	print AllCVEList
 
+del wb
+
 print " = Read xlsx file done = "
+
+excelapp = win32com.client.Dispatch("Excel.Application")
+excelapp.Visible = 0
+excelxls = excelapp.Workbooks.Open(excelFilePath)
 
 line = 1
 run = excelxls.Worksheets('run')
