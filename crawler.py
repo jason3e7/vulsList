@@ -18,8 +18,8 @@ sTime = 0.1
 
 excelFilePath = "../vulsList/vulsList.xlsx"
 
-begin = datetime(2015, 11, 12)
-end = datetime(2015, 11, 19)
+begin = datetime(2015, 12, 30)
+end = datetime(2016, 1, 7)
 
 excelapp = win32com.client.Dispatch("Excel.Application")
 excelapp.Visible = 0
@@ -31,7 +31,7 @@ blackList = []
 
 print " = Read xlsx file = "
 
-history = excelxls.Worksheets("vulsHistory")
+history = excelxls.Worksheets("run1105_1230")
 used = history.UsedRange
 nrows = used.Row + used.Rows.Count
 
@@ -79,8 +79,17 @@ def getHttp(url) :
 	req = Request('GET', url)
 	prepped = req.prepare()
 	prepped.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.99 Safari/537.36' 
-	print 'Get : %s' % url
-	return s.send(prepped)
+	count = 0
+	while 1:
+		if (count >= 3) :
+			return response
+		print 'Get : %s' % url
+		response = s.send(prepped)
+		if (response.status_code == 200) :
+			return response
+		print response.status_code
+		time.sleep(1)
+		count += 1
 
 def checkDate(begin, date, end) :
 	if (begin <= date and date <= end) :
@@ -130,10 +139,12 @@ def inWhiteList(title) :
 def getRisk(cve) :
 	r = getHttp("https://web.nvd.nist.gov/view/vuln/detail?vulnId=" + cve)
 	contents = BeautifulSoup(r.content).find("div", {"id": "contents"})
-	if re.search("cvssDetail", str(contents)) == None :
+	if re.search("cvss-detail", str(contents)) == None :
 		return "Not Found"
-	firstRow = contents.find("div", {"class" : "cvssDetail"}).find("div")
- 	reRisk = re.search('\((.+?)\)', firstRow.getText())
+	firstRow = contents.findAll("div", {"class" : "cvss-detail"})[0].find("div")
+ 	if "CVSS v3" in firstRow.getText() :
+		firstRow = contents.findAll("div", {"class" : "cvss-detail"})[1].find("div")
+	reRisk = re.search('\((.+?)\)', firstRow.getText())
 	return reRisk.group(1)
 
 def getRiskByCVElist(CVElist) :
@@ -188,6 +199,9 @@ def setData(data) :
 	if (data[6] == "Black" or data[6] == "CVErepeat") :
 		# gray
 		run.Rows(line).Interior.ColorIndex = 48
+	elif (data[6] == "White" and data[4] == "") :
+		# orange
+		run.Rows(line).Interior.ColorIndex = 40
 	elif (data[6] != "White") :
 		# yellow
 		run.Rows(line).Interior.ColorIndex = 36
@@ -214,15 +228,21 @@ def getExploitDB(url) :
 		sourceRequest = getHttp(source)
 		sourceHttp = BeautifulSoup(sourceRequest.content)
 		tdList = sourceHttp.find("table", {"class" : "exploit_list"}).findAll("td")
-		CVEnumber = tdList[1].getText()
-		CVEnumber = CVEnumber.replace(":", "-")
-		data[6] = checkCVE(CVEnumber)
-		if (data[6] == "CVEreap") : 
+		aList = tdList[1].findAll("a")
+	
+		CVElist = "NoCVE"
+		if (len(aList) != 0) :
+			CVElistOrigin = re.findall('CVE-\d{4}-\d{4,7}', str(aList[0]))
+			CVElist = filterCVEs(CVElistOrigin)
+		
+		data[6] = checkCVEs(CVElist)
+		if (data[6] == "CVErepeat") : 
+			data[4] = ",".join(CVElistOrigin)
 			setData(data)
 			continue
 		if (data[6] == "New") :
-			data[4] = CVEnumber
-			data[5] = riskEn2Tw(getRisk(CVEnumber))
+			data[4] = ",".join(CVElist)
+			data[5] = riskEn2Tw(getRiskByCVElist(CVElist))
 		platform = inWhiteList(title)
 		if (platform != False) :
 			data[2] = platform
@@ -255,11 +275,13 @@ def getHkcert(url) :
 		CVElist = "NoCVE"
 		if (content6 != None) :
 			liList = content6.findAll("li")
-			CVElist = []
+			CVElistOrigin = []
 			for li in liList :
-				CVElist.append(li.getText())
-			CVElist = filterCVEs(CVElist)
+				CVElistOrigin.append(li.getText())
+			CVElist = filterCVEs(CVElistOrigin)
 		data[6] = checkCVEs(CVElist)
+		if (data[6] == "CVErepeat") : 
+			data[4] = ",".join(CVElistOrigin)
 		if (data[6] != "New") : 
 			setData(data)
 			continue
@@ -287,14 +309,18 @@ def getNsfocus(url) :
 		# save utf8 tw use excel import OK
 		title = cc.convert(row.find("a").getText())	
 		source = "http://www.nsfocus.net" + str(row.find("a").get("href"))
+		CVEnumber = ""
 		CVEre = re.search('CVE-\d{4}-\d{4,7}', title)
+		if (checkDate(begin, date, end) == False) :
+			continue
+		
 		if (CVEre == None) :
 			sourceRequest = getHttp(source)
 			sourceHttp = BeautifulSoup(sourceRequest.content)
 			CVEre = re.search('CVE-\d{4}-\d{4,7}', str(sourceHttp))
-		CVEnumber = CVEre.group(0)
-		if (checkDate(begin, date, end) == False) :
-			continue
+		if (CVEre != None) :	
+			CVEnumber = CVEre.group(0)
+		
 		title = title.replace("(" + CVEnumber + ")", "")
 		data = [date, title, "", source, CVEnumber, "", ""]
 		if inBlackList(title) :
@@ -303,6 +329,7 @@ def getNsfocus(url) :
 			continue
 		data[6] = checkCVE(CVEnumber)
 		if (data[6] == "CVErepeat") : 
+			data[4] = CVEnumber
 			setData(data)
 			continue
 		if (data[6] == "New") :
