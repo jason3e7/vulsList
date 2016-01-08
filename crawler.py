@@ -12,13 +12,13 @@ from requests import Request, Session
 from datetime import datetime
 import opencc
 import re
-import win32com.client
 from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
 
 sTime = 0.1
 
-excelFilePath = "../vulsList/vulsList.xlsx"
-excelFileName = "vulsList.xlsx"
+excelFilename = 'vulsList.xlsx'
+wb = load_workbook(excelFilename)
 
 begin = datetime(2015, 12, 30)
 end = datetime(2016, 1, 7)
@@ -26,9 +26,6 @@ end = datetime(2016, 1, 7)
 AllCVEList = []
 whiteList = []
 blackList = []
-
-filename = 'vulsList.xlsx'
-wb = load_workbook(filename)
 
 print " = Read xlsx file = "
 
@@ -45,7 +42,6 @@ for i in range(2, nrows) :
 
 wl = wb['whiteList']
 nrows = wl.max_row + 1
-wl['A1'].value = 42
 
 for i in range(2, nrows) :
 	whiteList.append(str(wl.cell(row = i, column = 1).value))
@@ -64,19 +60,7 @@ def debugInputInfo() :
 	print 'AllCVEList'
 	print AllCVEList
 
-del wb
-
 print " = Read xlsx file done = "
-
-excelapp = win32com.client.Dispatch("Excel.Application")
-excelapp.Visible = 0
-excelxls = excelapp.Workbooks.Open(excelFilePath)
-
-line = 1
-run = excelxls.Worksheets('run')
-data = ['Date', 'Title', 'Platform', 'Source', 'CVE', 'Risk', 'Status']
-run.Range(run.Cells(line, 1), run.Cells(line, 7)).Value = data
-line += 1
 
 def getHttp(url) :
 	time.sleep(sTime)
@@ -198,19 +182,24 @@ urlList = [
 	'https://www.exploit-db.com/dos/?order_by=date&order=desc'
 ]
 
+grayFill = PatternFill(start_color='FF969696', end_color='FF969696', fill_type='solid')
+orangeFill = PatternFill(start_color='FFFFCC99', end_color='FFFFCC99', fill_type='solid')
+yellowFill = PatternFill(start_color='FFFFFF99', end_color='FFFFFF99', fill_type='solid')
 def setData(data) :
 	global line	
-	run.Range(run.Cells(line, 1), run.Cells(line, 7)).Value = data
+	for i in range(1, 8) :
+		run.cell(row = line, column = i).value = data[i - 1]
+
 	if (data[6] == "Black" or data[6] == "CVErepeat") :
-		# gray
-		run.Rows(line).Interior.ColorIndex = 48
+		for i in range(1, 8) :
+			run.cell(row = line, column = i).fill = grayFill
 	elif (data[6] == "White" and data[4] == "") :
-		# orange
-		run.Rows(line).Interior.ColorIndex = 40
-	elif (data[6] != "White") :
-		# yellow
-		run.Rows(line).Interior.ColorIndex = 36
-	line += 1;							
+		for i in range(1, 8) :
+			run.cell(row = line, column = i).fill = orangeFill
+	elif (data[6] != "White" and line != 1) :
+		for i in range(1, 8) :
+			run.cell(row = line, column = i).fill = yellowFill
+	line += 1
 
 def getExploitDB(url) :
 	r = getHttp(url)
@@ -375,9 +364,13 @@ def crawlNsfocus() :
 		else :
 			break;
 
+line = 1
+run = wb['run']
+data = ['Date', 'Title', 'Platform', 'Source', 'CVE', 'Risk', 'Status']
+setData(data)
+
 crawlExploitDB()
 crawlHkcert()
 crawlNsfocus()
 
-excelxls.Save()
-excelapp.Quit()
+wb.save(excelFilename)
