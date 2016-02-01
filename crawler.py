@@ -17,10 +17,12 @@ from openpyxl.styles import PatternFill
 
 sTime = 0.1
 
+path = '/home/jason3e7/vulsList/'
+
 today = datetime.datetime.combine(datetime.datetime.now().date(), datetime.time.min)
 end = today - datetime.timedelta(days = 1)
 begin = end - datetime.timedelta(days = 6)
-prevFilename = 'vulsList_' + begin.strftime('%Y%m%d') + '.xlsx'
+prevFilename = path + 'vulsList_' + begin.strftime('%Y%m%d') + '.xlsx'
 
 print 'today : ' + str(today)
 print 'range : ' + str(begin) + ' ~ ' + str(end)
@@ -84,7 +86,7 @@ def getHttp(url) :
 		if (count >= 3) :
 			return response
 		print 'Get : %s' % url
-		response = s.send(prepped)
+		response = s.send(prepped, verify=False)
 		if (response.status_code == 200) :
 			return response
 		print response.status_code
@@ -306,13 +308,14 @@ def getNsfocus(url) :
 	r.encoding = r.apparent_encoding
 	soup = BeautifulSoup(r.text)
 	rows = soup.find("ul", attrs={"class": "vul_list"}).findAll("li")
-	cc = opencc.OpenCC('s2t')
+	#cc = opencc.OpenCC('s2t')
 	date = 0
 	for row in rows :
 		# cn word print ERROR but save file OK
 		date = datetime.datetime.strptime(row.find("span").getText(), "%Y-%m-%d")  
 		# save utf8 tw use excel import OK
-		title = cc.convert(row.find("a").getText())	
+		#title = cc.convert(row.find("a").getText())	
+		title = row.find("a").getText()
 		source = "http://www.nsfocus.net" + str(row.find("a").get("href"))
 		CVEnumber = ""
 		CVEre = re.search('CVE-\d{4}-\d{4,7}', title)
@@ -384,4 +387,13 @@ crawlHkcert()
 crawlNsfocus()
 
 runTime = today.strftime('%Y%m%d')
-wb.save('vulsList_' + runTime + '.xlsx')
+newFilename = 'vulsList_' + runTime + '.xlsx'
+wb.save(path + newFilename)
+
+import subprocess
+
+cmd = "mutt -s 'vulsList' example@example.com"
+cmd += (" -a /home/jason3e7/vulsList/" + newFilename)
+cmd += " < /home/jason3e7/vulsList/message"
+subprocess.call(cmd, shell=True)
+

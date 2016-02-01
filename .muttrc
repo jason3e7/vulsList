@@ -1,0 +1,4 @@
+set from = "email"
+set realname = "name"
+set smtp_url = "smtp://example:25" 
+set smtp_pass = "password"
