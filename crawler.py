@@ -146,7 +146,9 @@ def getRisk(cve) :
 	firstRow = contents.findAll("div", {"class" : "cvss-detail"})[0].find("div")
  	if "CVSS v3" in firstRow.getText() :
 		firstRow = contents.findAll("div", {"class" : "cvss-detail"})[1].find("div")
-	reRisk = re.search('\((.+?)\)', firstRow.getText())
+	#print firstRow.find('a').getText()
+	#print firstRow.getText()	
+	reRisk = re.search(firstRow.find('a').getText() + '(\w+)', firstRow.getText())
 	return reRisk.group(1)
 
 def getRiskByCVElist(CVElist) :
